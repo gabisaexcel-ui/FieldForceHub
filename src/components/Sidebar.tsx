@@ -1,7 +1,7 @@
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   BarChart3,
   CalendarCheck2,
-  ChevronDown,
   CircleDollarSign,
   ClipboardCheck,
   FileBarChart,
@@ -49,21 +49,66 @@ interface SidebarProps {
 
 export function Sidebar({ account, active, open, onClose, onNavigate, onLogout }: SidebarProps) {
   const allowed = visibleModules(account);
+  const navRef = useRef<HTMLElement>(null);
+  const [indicatorTop, setIndicatorTop] = useState<number | null>(null);
+  const [isReady, setIsReady] = useState(false);
+
+  // Kalkulasi posisi vertikal tombol aktif agar gelombang meluncur mulus
+  const updateIndicator = () => {
+    if (!navRef.current) return;
+    const activeEl = navRef.current.querySelector<HTMLElement>(".nav-link.active");
+    if (!activeEl) {
+      setIndicatorTop(null);
+      return;
+    }
+    const navRect = navRef.current.getBoundingClientRect();
+    const activeRect = activeEl.getBoundingClientRect();
+    const relativeTop = activeRect.top - navRect.top;
+    const centerY = relativeTop + activeRect.height / 2;
+    // Tinggi gelombang 180px (luwes & mengalir), titik tengah lengkungan tepat di 90px
+    const targetTop = centerY - 90;
+    setIndicatorTop(targetTop);
+    setIsReady(true);
+  };
+
+  useLayoutEffect(() => {
+    updateIndicator();
+    const raf = requestAnimationFrame(updateIndicator);
+    const t1 = setTimeout(updateIndicator, 40);
+    const t2 = setTimeout(updateIndicator, 140);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [active]);
+
+  useEffect(() => {
+    if (!navRef.current) return;
+    const navEl = navRef.current;
+    const onScroll = () => updateIndicator();
+    navEl.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", updateIndicator);
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => updateIndicator());
+      ro.observe(navEl);
+      const groups = navEl.querySelectorAll(".nav-group");
+      groups.forEach((g) => ro?.observe(g));
+    }
+
+    return () => {
+      navEl.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", updateIndicator);
+      ro?.disconnect();
+    };
+  }, [active]);
 
   return (
     <>
       {open && <button className="sidebar-scrim" aria-label="Tutup navigasi" onClick={onClose} />}
       <aside className={`sidebar ${open ? "is-open" : ""}`}>
-        {/* Organic wave cutout decorative SVG that creates the flowing curved silhouette on right edge */}
-        <div className="sidebar-wave-decor" aria-hidden="true">
-          <svg viewBox="0 0 40 900" preserveAspectRatio="none">
-            <path
-              d="M0,0 C20,120 40,240 28,340 C16,440 38,580 20,700 C8,790 35,850 40,900 L0,900 Z"
-              fill="currentColor"
-            />
-          </svg>
-        </div>
-
         {/* Brand Header with Lightning Bolt Icon */}
         <div className="brand-row">
           <div className="brand-mark-circle">
@@ -84,11 +129,45 @@ export function Sidebar({ account, active, open, onClose, onNavigate, onLogout }
         </div>
 
         {/* Navigation Tree */}
-        <nav className="navigation" aria-label="Navigasi sistem">
+        <nav className="navigation" ref={navRef} aria-label="Navigasi sistem">
+          {/* Floating Organic Wave Indicator: Meluncur mulus mengikuti menu yang aktif */}
+          <div
+            className="floating-wave-indicator"
+            style={{
+              transform: indicatorTop !== null ? `translate3d(0, ${indicatorTop}px, 0)` : "translate3d(0, -999px, 0)",
+              opacity: isReady && indicatorTop !== null ? 1 : 0,
+            }}
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 52 180" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="waveRimGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="rgba(255, 255, 255, 0)" />
+                  <stop offset="35%" stopColor="rgba(255, 255, 255, 0.45)" />
+                  <stop offset="50%" stopColor="rgba(56, 189, 248, 0.8)" />
+                  <stop offset="65%" stopColor="rgba(255, 255, 255, 0.45)" />
+                  <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
+                </linearGradient>
+              </defs>
+              {/* Gelombang putih menyatu dengan page background */}
+              <path
+                d="M 52,0 C 52,42 12,48 12,90 C 12,132 52,138 52,180 L 52,0 Z"
+                fill="var(--page-bg)"
+              />
+              {/* Rim light / kilauan halus di bibir gelombang agar terasa hidup */}
+              <path
+                d="M 52,0 C 52,42 12,48 12,90 C 12,132 52,138 52,180"
+                fill="none"
+                stroke="url(#waveRimGlow)"
+                strokeWidth="1.8"
+              />
+            </svg>
+          </div>
+
           {/* Quick Home item */}
           <div className="nav-group">
             <button
-              className={`nav-link ${active === "dashboard" ? "active" : ""}`}
+              className="nav-link"
               onClick={() => {
                 onNavigate("dashboard");
                 onClose();
@@ -153,7 +232,13 @@ export function Sidebar({ account, active, open, onClose, onNavigate, onLogout }
           {/* Additional bottom navigation items matching mockup */}
           <div className="nav-group secondary-group">
             <p className="nav-group-label">Help & Support</p>
-            <button className="nav-link" onClick={() => onNavigate("settings")}>
+            <button
+              className={`nav-link ${active === "settings" ? "active" : ""}`}
+              onClick={() => {
+                onNavigate("settings");
+                onClose();
+              }}
+            >
               <Settings size={18} strokeWidth={1.8} />
               <span>Settings</span>
             </button>

@@ -56,7 +56,7 @@ button {
 .app-main {
   flex: 1;
   min-width: 0;
-  margin-left: 275px;
+  margin-left: 260px;
   background: var(--page-bg);
   min-height: 100vh;
 }
@@ -64,32 +64,14 @@ button {
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
-  width: 275px;
+  width: 260px;
   z-index: 50;
   background: linear-gradient(180deg, var(--navy-dark) 0%, #0a1b38 65%, var(--navy-deeper) 100%);
   color: #ffffff;
   display: flex;
   flex-direction: column;
-  padding: 26px 20px 20px;
-  box-shadow: 12px 0 35px rgba(6, 17, 36, 0.15);
-}
-
-/* Organic curve wave transition on the right edge */
-.sidebar-wave-decor {
-  position: absolute;
-  top: 0;
-  right: -20px;
-  width: 20px;
-  height: 100%;
-  pointer-events: none;
-  color: var(--navy-dark);
-  z-index: 51;
-  opacity: 0.95;
-}
-
-.sidebar-wave-decor svg {
-  width: 100%;
-  height: 100%;
+  padding: 26px 0 20px 20px;
+  box-shadow: 6px 0 20px rgba(6, 17, 36, 0.1);
 }
 
 /* Brand header with lightning icon matching mockup */
@@ -97,7 +79,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 6px 22px;
+  padding: 0 20px 22px 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -136,6 +118,8 @@ button {
 
 /* Navigation items & Tree structure */
 .navigation {
+  position: relative;
+  z-index: 2;
   flex: 1;
   overflow-y: auto;
   padding: 18px 0 20px;
@@ -169,7 +153,7 @@ button {
 }
 
 .nav-link {
-  width: 100%;
+  width: calc(100% - 20px);
   height: 42px;
   display: flex;
   align-items: center;
@@ -180,7 +164,8 @@ button {
   font-size: 13px;
   font-weight: 500;
   text-align: left;
-  transition: all 0.2s ease;
+  transition: color 0.25s ease, background 0.25s ease;
+  position: relative;
 }
 
 .nav-link:hover {
@@ -191,24 +176,48 @@ button {
 .nav-link svg {
   color: #7b94b5;
   transition: color 0.2s ease;
+  flex-shrink: 0;
 }
 
 .nav-link:hover svg {
   color: #4dafff;
 }
 
-/* Active Nav item with flowing seamless highlight */
+/* Active Nav item with flowing seamless highlight matching Image 1 & Image 3 */
 .nav-link.active {
-  color: #ffffff;
-  background: rgba(37, 143, 229, 0.2);
-  border: 1px solid rgba(77, 175, 255, 0.25);
+  width: 100%;
+  color: #38bdf8;
+  background: linear-gradient(90deg, rgba(37, 143, 229, 0.24) 0%, rgba(255, 255, 255, 0.04) 100%);
+  border-radius: 12px 0 0 12px;
   font-weight: 700;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border: none;
+  box-shadow: none;
+  padding-right: 48px;
 }
 
 .nav-link.active svg {
-  color: #3bb2ff;
-  filter: drop-shadow(0 0 8px rgba(59, 178, 255, 0.5));
+  color: #38bdf8;
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
+}
+
+/* Floating Organic Wave Indicator - Meluncur mulus & dinamis mengikuti menu yang aktif */
+.floating-wave-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 52px;
+  height: 180px;
+  pointer-events: none;
+  z-index: 10;
+  transition: transform 0.46s cubic-bezier(0.2, 0.9, 0.2, 1), opacity 0.25s ease;
+  will-change: transform;
+  filter: drop-shadow(-4px 0 10px rgba(6, 17, 36, 0.08)) drop-shadow(-1px 0 5px rgba(56, 189, 248, 0.12));
+}
+
+.floating-wave-indicator svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 /* Tree branches submenu with clean connecting lines */
@@ -259,11 +268,13 @@ button {
 .secondary-group {
   margin-top: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
-  padding-top: 14px;
+  padding: 14px 20px 0 0;
 }
 
 .sidebar-footer {
-  padding-top: 14px;
+  position: relative;
+  z-index: 2;
+  padding: 14px 20px 0 0;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
