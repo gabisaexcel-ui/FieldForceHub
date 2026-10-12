@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
+import { hashPassword } from "./authService";
 import type { DemoAccount } from "../types";
 
 export interface ProfileUpdatePayload {
@@ -120,6 +121,8 @@ export async function saveProfileData(
     address: string;
     mapsUrl: string;
     phone: string;
+    username: string;
+    password: string;
   }>
 ): Promise<{ success: boolean; updatedAccount: DemoAccount; error?: string }> {
   const userCode = currentAccount.code || currentAccount.id;
@@ -134,6 +137,8 @@ export async function saveProfileData(
     address: updates.address ?? currentAccount.address,
     mapsUrl: updates.mapsUrl ?? currentAccount.mapsUrl,
     phone: updates.phone ?? currentAccount.phone,
+    username: updates.username ? updates.username.trim().toLowerCase() : currentAccount.username,
+    password: updates.password ? updates.password.trim() : currentAccount.password,
     initials: updates.name
       ? updates.name
           .split(" ")
@@ -147,6 +152,7 @@ export async function saveProfileData(
   // Simpan ke localStorage
   try {
     localStorage.setItem(`fieldforce:profile:${updatedAccount.id}`, JSON.stringify(updatedAccount));
+    localStorage.setItem("fieldforce:auth_session", JSON.stringify(updatedAccount));
   } catch (_) {}
 
   // Simpan langsung ke Supabase
@@ -173,6 +179,14 @@ export async function saveProfileData(
         account_level: updatedAccount.level,
         operational_role: updatedAccount.role === "ALL" ? "FC" : updatedAccount.role,
       };
+
+      if (updatedAccount.username) {
+        payload.username = updatedAccount.username;
+      }
+      if (updates.password) {
+        payload.password = await hashPassword(updates.password);
+        updatedAccount.password = payload.password;
+      }
 
       if (newId) {
         payload.id = newId;

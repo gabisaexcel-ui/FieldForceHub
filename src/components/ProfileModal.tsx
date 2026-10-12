@@ -1,4 +1,15 @@
-import { MapPin, Phone, Save, User, X, ExternalLink, ShieldCheck } from "lucide-react";
+import {
+  ExternalLink,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
+  MapPin,
+  Phone,
+  Save,
+  User,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { saveProfileData } from "../lib/profileService";
 import type { DemoAccount } from "../types";
@@ -18,6 +29,7 @@ export function ProfileModal({
   onSave,
   onToast,
 }: ProfileModalProps) {
+  // State Data Diri
   const [name, setName] = useState(account.name);
   const [position, setPosition] = useState(account.position || account.role);
   const [area, setArea] = useState(account.area);
@@ -27,6 +39,12 @@ export function ProfileModal({
   const [phone, setPhone] = useState(account.phone || "");
   const [address, setAddress] = useState(account.address || "");
   const [mapsUrl, setMapsUrl] = useState(account.mapsUrl || "");
+
+  // State Kredensial Login (Username & Password)
+  const [username, setUsername] = useState(account.username || account.code || "");
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
   const [saving, setSaving] = useState(false);
 
   // Sinkronkan data form setiap kali akun berubah atau modal dibuka
@@ -39,6 +57,9 @@ export function ProfileModal({
       setPhone(account.phone || "");
       setAddress(account.address || "");
       setMapsUrl(account.mapsUrl || "");
+      setUsername(account.username || account.code || "");
+      setNewPassword("");
+      setShowPassword(false);
     }
   }, [account, open]);
 
@@ -48,7 +69,7 @@ export function ProfileModal({
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await saveProfileData(account, {
+      const updatesPayload: any = {
         name,
         position,
         area,
@@ -56,10 +77,21 @@ export function ProfileModal({
         phone,
         address,
         mapsUrl,
-      });
+        username,
+      };
+
+      if (newPassword.trim()) {
+        updatesPayload.password = newPassword.trim();
+      }
+
+      const res = await saveProfileData(account, updatesPayload);
 
       onSave(res.updatedAccount);
-      onToast("Data diri berhasil diperbarui dan tersimpan!");
+      onToast(
+        newPassword.trim()
+          ? `Profil & password baru berhasil disimpan dengan aman (terenkripsi hash)!`
+          : `Profil (@${res.updatedAccount.username || username}) berhasil diperbarui!`
+      );
       onClose();
     } catch (err: any) {
       alert("Gagal menyimpan data diri: " + (err?.message || "Terjadi kesalahan"));
@@ -73,7 +105,7 @@ export function ProfileModal({
       <div className="modal-card profile-edit-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <div className="modal-title-with-badge">
-            <h3>Edit Data Diri Mandiri</h3>
+            <h3>Edit Data Diri & Kredensial Akun</h3>
             <span className={`role-tag-pill ${account.role.toLowerCase()}`}>
               {account.role} • {account.level.toUpperCase()}
             </span>
@@ -95,12 +127,79 @@ export function ProfileModal({
               <strong>{account.division}</strong>
             </div>
             <div>
-              <span>Bergabung:</span>
-              <strong>{account.joinDate || "01/07/2024"}</strong>
+              <span>Status Level:</span>
+              <strong>{account.level.toUpperCase()}</strong>
             </div>
           </div>
 
-          {/* Form fields: Nama, posisi, area, gender, alamat, lokasi/maps */}
+          {/* Bagian Kredensial Login (Username & Password) */}
+          <div
+            style={{
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: "10px",
+              padding: "14px 16px",
+              marginBottom: "16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "12px",
+                color: "#1e293b",
+                fontWeight: 700,
+                fontSize: "13px",
+              }}
+            >
+              <KeyRound size={16} className="text-primary-link" />
+              <span>Kredensial Login Pribadi Anda</span>
+            </div>
+
+            <div className="input-row-dual">
+              <div className="input-group">
+                <label>Username Anda:</label>
+                <div className="input-with-icon">
+                  <User size={15} />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username login"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label>Password Baru (Opsional):</label>
+                <div className="input-with-icon">
+                  <Lock size={15} />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Kosongkan jika tidak diubah"
+                  />
+                  <button
+                    type="button"
+                    className="btn-toggle-eye"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <small className="muted-text" style={{ fontSize: "11px", display: "block", marginTop: "6px" }}>
+              *Password disimpan terenkripsi dengan aman (SHA-256). Kosongkan kolom password bila tidak ingin mengubahnya.
+            </small>
+          </div>
+
+          {/* Form fields: Nama, posisi, area, gender, nomor telepon, alamat */}
           <div className="input-group">
             <label>Nama Lengkap:</label>
             <input
@@ -119,7 +218,7 @@ export function ProfileModal({
                 type="text"
                 value={position}
                 onChange={(e) => setPosition(e.target.value)}
-                placeholder="Contoh: Merchandiser Lapangan"
+                placeholder="Contoh: Field Coordinator Lapangan"
                 required
               />
             </div>
@@ -206,7 +305,7 @@ export function ProfileModal({
               Batal
             </button>
             <button type="submit" className="btn-primary-action" disabled={saving}>
-              <Save size={15} /> {saving ? "Menyimpan..." : "Simpan Perubahan"}
+              <Save size={15} /> {saving ? "Menyimpan ke Supabase..." : "Simpan Perubahan"}
             </button>
           </div>
         </form>

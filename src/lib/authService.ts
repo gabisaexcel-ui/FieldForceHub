@@ -10,6 +10,7 @@ export interface RegisterParams {
   area: string;
   phone?: string;
   position?: string;
+  creatorAccount?: DemoAccount;
 }
 
 const AUTH_STORAGE_KEY = "fieldforce:auth_session";
@@ -28,9 +29,9 @@ export const divisionMeta: Record<
   { name: string; tag: string; description: string; color: string }
 > = {
   ALL: {
-    name: "All Divisions",
-    tag: "ALL",
-    description: "Seluruh divisi operasional",
+    name: "Master Administrator",
+    tag: "MASTER",
+    description: "Seluruh divisi operasional & manajemen nasional",
     color: "#4f46e5",
   },
   FC: {
@@ -71,15 +72,179 @@ export const divisionMeta: Record<
   },
 };
 
-// Akun default cepat untuk kemudahan demonstrasi
-export const quickAccounts = [
-  { username: "fc_user", pass: "123", role: "FC", level: "user", name: "Siti Firdaus" },
-  { username: "fc_admin", pass: "123", role: "FC", level: "admin", name: "Admin Koordinator Wilayah" },
-  { username: "md_user", pass: "123", role: "MD", level: "user", name: "Muhamad Faizal Kako Djata" },
-  { username: "mdps_user", pass: "123", role: "MDPS", level: "user", name: "Sindy Ayu Rahmawati" },
-  { username: "sales_user", pass: "123", role: "Salesman", level: "user", name: "Mochamad Hanif Aziz" },
-  { username: "ts_user", pass: "123", role: "TS", level: "user", name: "TS Surabaya & Sekitar" },
-  { username: "kam_user", pass: "123", role: "KAM", level: "user", name: "Bayu Maki (NAM)" },
+/**
+ * HASH PASSWORD DENGAN STANDAR KRIPTOGRAFI SHA-256
+ */
+export async function hashPassword(plain: string): Promise<string> {
+  const clean = plain.trim();
+  const encoder = new TextEncoder();
+  const data = encoder.encode(clean);
+
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  return clean;
+}
+
+/**
+ * VERIFIKASI PASSWORD (MENDUKUNG HASH SHA-256 DAN FALLBACK PLAIN TEXT)
+ */
+export async function verifyPassword(
+  inputPassword: string,
+  storedHashOrPlain: string
+): Promise<boolean> {
+  if (!storedHashOrPlain) return false;
+  // Cek kecocokan jika database masih menyimpan plain text
+  if (inputPassword.trim() === storedHashOrPlain.trim()) return true;
+  // Verifikasi hash SHA-256
+  const inputHashed = await hashPassword(inputPassword);
+  return inputHashed.toLowerCase() === storedHashOrPlain.trim().toLowerCase();
+}
+
+/**
+ * DAFTAR RESMI 13 AKUN HIERARKI (1 AKUN = 1 ROLE & 1 STATUS TETAP)
+ */
+export const hierarchyAccounts = [
+  // 1. Master Administrator
+  {
+    username: "master_admin",
+    altCode: "master.all",
+    pass: "123",
+    role: "ALL" as OperationalRole,
+    level: "master" as AccountLevel,
+    name: "Siti Firdaus (Master)",
+    area: "Nasional",
+    position: "Master Administrator",
+  },
+  // 2. Field Coordinator (FC)
+  {
+    username: "fc_admin",
+    altCode: "admin.fc",
+    pass: "123",
+    role: "FC" as OperationalRole,
+    level: "admin" as AccountLevel,
+    name: "Admin Koordinator FC",
+    area: "East Java Bali Nusra",
+    position: "Admin Divisi FC",
+  },
+  {
+    username: "fc_user",
+    altCode: "field.coordinator",
+    pass: "123",
+    role: "FC" as OperationalRole,
+    level: "user" as AccountLevel,
+    name: "Siti Firdaus",
+    area: "East Java Bali Nusra",
+    position: "Field Coordinator Lapangan",
+  },
+  // 3. Merchandiser (MD)
+  {
+    username: "md_admin",
+    altCode: "admin.md",
+    pass: "123",
+    role: "MD" as OperationalRole,
+    level: "admin" as AccountLevel,
+    name: "Admin Merchandiser",
+    area: "Surabaya",
+    position: "Admin Divisi MD",
+  },
+  {
+    username: "md_user",
+    altCode: "GSKMD320",
+    pass: "123",
+    role: "MD" as OperationalRole,
+    level: "user" as AccountLevel,
+    name: "Muhamad Faizal Kako Djata",
+    area: "Denpasar",
+    position: "Merchandiser Lapangan",
+  },
+  // 4. MD Product Specialist (MDPS)
+  {
+    username: "mdps_admin",
+    altCode: "admin.mdps",
+    pass: "123",
+    role: "MDPS" as OperationalRole,
+    level: "admin" as AccountLevel,
+    name: "Admin MDPS",
+    area: "Surabaya",
+    position: "Admin Divisi MDPS",
+  },
+  {
+    username: "mdps_user",
+    altCode: "GSKMD342",
+    pass: "123",
+    role: "MDPS" as OperationalRole,
+    level: "user" as AccountLevel,
+    name: "Sindy Ayu Rahmawati",
+    area: "Surabaya",
+    position: "MD Product Specialist Lapangan",
+  },
+  // 5. Sales Representative (Salesman)
+  {
+    username: "sales_admin",
+    altCode: "admin.sales",
+    pass: "123",
+    role: "Salesman" as OperationalRole,
+    level: "admin" as AccountLevel,
+    name: "Admin Salesman",
+    area: "Surabaya",
+    position: "Admin Divisi Sales",
+  },
+  {
+    username: "sales_user",
+    altCode: "34Q4001",
+    pass: "123",
+    role: "Salesman" as OperationalRole,
+    level: "user" as AccountLevel,
+    name: "Mochamad Hanif Aziz",
+    area: "Surabaya",
+    position: "Sales Representative Lapangan",
+  },
+  // 6. Territory Sales (TS)
+  {
+    username: "ts_admin",
+    altCode: "admin.ts",
+    pass: "123",
+    role: "TS" as OperationalRole,
+    level: "admin" as AccountLevel,
+    name: "Admin Territory Sales",
+    area: "Surabaya",
+    position: "Admin Divisi TS",
+  },
+  {
+    username: "ts_user",
+    altCode: "TS1",
+    pass: "123",
+    role: "TS" as OperationalRole,
+    level: "user" as AccountLevel,
+    name: "TS Surabaya & Sekitar",
+    area: "Surabaya",
+    position: "Territory Sales Lapangan",
+  },
+  // 7. Key Account Manager (KAM)
+  {
+    username: "kam_admin",
+    altCode: "admin.kam",
+    pass: "123",
+    role: "KAM" as OperationalRole,
+    level: "admin" as AccountLevel,
+    name: "Admin Key Account Manager",
+    area: "Nasional",
+    position: "Admin Divisi KAM",
+  },
+  {
+    username: "kam_user",
+    altCode: "KAM1",
+    pass: "123",
+    role: "KAM" as OperationalRole,
+    level: "user" as AccountLevel,
+    name: "Bayu Maki (NAM)",
+    area: "Nasional",
+    position: "National Account Manager Lapangan",
+  },
 ];
 
 export function getSession(): DemoAccount | null {
@@ -105,7 +270,8 @@ export function clearSession(): void {
 }
 
 /**
- * LOGIN DENGAN USERNAME & PASSWORD MURNI DARI SUPABASE
+ * LOGIN DENGAN USERNAME & PASSWORD MURNI SESUAI IDENTITAS DATABASE
+ * Memverifikasi hash cryptographic SHA-256
  */
 export async function loginWithCredentials(
   usernameInput: string,
@@ -118,42 +284,47 @@ export async function loginWithCredentials(
     throw new Error("Silakan masukkan username dan password!");
   }
 
-  // 1. Cek langsung ke database Supabase
+  // Cari apakah input username cocok dengan alias akun hierarki
+  const mappedHierarchy = hierarchyAccounts.find(
+    (h) =>
+      h.username.toLowerCase() === usernameClean ||
+      h.altCode.toLowerCase() === usernameClean
+  );
+
+  const lookupCodes = mappedHierarchy
+    ? [mappedHierarchy.username, mappedHierarchy.altCode]
+    : [usernameClean];
+
+  // 1. Cari data murni di database Supabase
   if (isSupabaseConfigured && supabase) {
     try {
       let data: any = null;
-      let error: any = null;
 
       // Coba query kolom username dan user_code
-      const res = await supabase
-        .from("profiles")
-        .select("*")
-        .or(`username.ilike.${usernameClean},user_code.ilike.${usernameClean}`)
-        .maybeSingle();
-
-      data = res.data;
-      error = res.error;
-
-      // Jika kolom 'username' belum ada di skema database, fallback ke query 'user_code'
-      if (error && error.code === "42703") {
-        const fallbackRes = await supabase
+      for (const code of lookupCodes) {
+        const res = await supabase
           .from("profiles")
           .select("*")
-          .ilike("user_code", usernameClean)
+          .or(`user_code.ilike.${code},username.ilike.${code}`)
           .maybeSingle();
 
-        data = fallbackRes.data;
-        error = fallbackRes.error;
+        if (res.data) {
+          data = res.data;
+          break;
+        }
       }
 
-      if (!error && data) {
-        // Validasi password jika kolom password ada di Supabase
-        if (data.password && data.password !== passwordClean) {
-          throw new Error("Password yang Anda masukkan salah!");
+      if (data) {
+        // Validasi password terenkripsi / hash SHA-256
+        if (data.password) {
+          const isMatch = await verifyPassword(passwordClean, data.password);
+          if (!isMatch) {
+            throw new Error("Password yang Anda masukkan salah!");
+          }
         }
 
-        const role = (data.operational_role as OperationalRole) || "FC";
-        const level = (data.account_level as AccountLevel) || "user";
+        const role = (data.operational_role as OperationalRole) || mappedHierarchy?.role || "FC";
+        const level = (data.account_level as AccountLevel) || mappedHierarchy?.level || "user";
         const initials = (data.full_name || usernameClean)
           .split(" ")
           .map((p: string) => p[0])
@@ -164,7 +335,7 @@ export async function loginWithCredentials(
         const account: DemoAccount = {
           id: data.id || `user-${usernameClean}`,
           code: data.user_code || usernameClean,
-          username: data.username || data.user_code || usernameClean,
+          username: mappedHierarchy?.username || data.username || data.user_code || usernameClean,
           password: data.password || passwordClean,
           name: data.full_name || usernameClean,
           initials,
@@ -172,10 +343,16 @@ export async function loginWithCredentials(
           role,
           division: data.division_code || role,
           area: data.area_code || "Surabaya",
-          position: data.position || (level === "admin" ? `Admin Divisi ${role}` : `Manpower ${role}`),
+          position:
+            data.position ||
+            (level === "master"
+              ? "Master Administrator"
+              : level === "admin"
+              ? `Admin Divisi ${role}`
+              : `Manpower ${role} Lapangan`),
           phone: data.phone || "083854377989",
           gender: (data.gender as any) || "Laki-laki",
-          address: data.address || "Surabaya",
+          address: data.address || `Area ${role}`,
           mapsUrl: data.maps_url || "https://maps.google.com/?q=-7.2575,112.7521",
           joinDate: data.join_date || new Date().toLocaleDateString("id-ID"),
         };
@@ -191,19 +368,13 @@ export async function loginWithCredentials(
     }
   }
 
-  // 2. Fallback ke quickAccounts jika belum ada di database
-  const matchedQuick = quickAccounts.find(
-    (q) => q.username.toLowerCase() === usernameClean
-  );
-
-  if (matchedQuick) {
-    if (matchedQuick.pass !== passwordClean) {
-      throw new Error("Password salah! (Gunakan password default: 123)");
+  // 2. Fallback ke akun hierarki jika Supabase offline / belum tersinkron
+  if (mappedHierarchy) {
+    if (mappedHierarchy.pass !== passwordClean) {
+      throw new Error("Password salah! (Password default: 123)");
     }
 
-    const role = matchedQuick.role as OperationalRole;
-    const level = matchedQuick.level as AccountLevel;
-    const initials = matchedQuick.name
+    const initials = mappedHierarchy.name
       .split(" ")
       .map((p) => p[0])
       .slice(0, 2)
@@ -211,21 +382,21 @@ export async function loginWithCredentials(
       .toUpperCase();
 
     const account: DemoAccount = {
-      id: `${matchedQuick.username}-id`,
-      code: matchedQuick.username,
-      username: matchedQuick.username,
-      password: matchedQuick.pass,
-      name: matchedQuick.name,
+      id: `${mappedHierarchy.username}-id`,
+      code: mappedHierarchy.altCode,
+      username: mappedHierarchy.username,
+      password: mappedHierarchy.pass,
+      name: mappedHierarchy.name,
       initials,
-      level,
-      role,
-      division: role,
-      area: "Surabaya",
-      position: level === "admin" ? `Admin Divisi ${role}` : `Manpower ${role}`,
+      level: mappedHierarchy.level,
+      role: mappedHierarchy.role,
+      division: mappedHierarchy.role,
+      area: mappedHierarchy.area,
+      position: mappedHierarchy.position,
       phone: "083854377989",
       gender: "Laki-laki",
       joinDate: new Date().toLocaleDateString("id-ID"),
-      address: `Surabaya Area ${role}`,
+      address: `Basecamp ${mappedHierarchy.role} - ${mappedHierarchy.area}`,
       mapsUrl: "https://maps.google.com/?q=-7.2575,112.7521",
     };
 
@@ -233,11 +404,47 @@ export async function loginWithCredentials(
     return account;
   }
 
-  throw new Error("Akun dengan username tersebut belum terdaftar! Silakan klik tab 'Buat Akun Baru'.");
+  throw new Error(
+    `Akun "${usernameClean}" tidak terdaftar! Hubungi Admin Divisi atau Master untuk pembuatan akun.`
+  );
 }
 
 /**
- * DAFTAR / BUAT AKUN BARU KE DATABASE SUPABASE
+ * CEK HAK AKSES PEMBUATAN AKUN SESUAI HIERARKI
+ */
+export function canRegisterAccount(
+  creator: DemoAccount,
+  targetDivision: OperationalRole,
+  targetLevel: AccountLevel
+): { allowed: boolean; reason?: string } {
+  if (creator.level === "master") {
+    return { allowed: true };
+  }
+
+  if (creator.level === "admin") {
+    if (targetLevel === "admin" || targetLevel === "master") {
+      return {
+        allowed: false,
+        reason: "Admin divisi tidak dapat membuat akun Admin lain atau Master. Hanya Master yang memiliki hak akses ini.",
+      };
+    }
+    if (targetDivision !== creator.role) {
+      return {
+        allowed: false,
+        reason: `Admin divisi ${creator.role} hanya dapat membuat akun User untuk divisi ${creator.role}.`,
+      };
+    }
+    return { allowed: true };
+  }
+
+  return {
+    allowed: false,
+    reason: "User lapangan tidak memiliki izin untuk mendaftarkan akun baru.",
+  };
+}
+
+/**
+ * REGISTRASI AKUN BARU DENGAN PASSWORD TERHASH KE SUPABASE
  */
 export async function registerNewAccount(params: RegisterParams): Promise<DemoAccount> {
   const usernameClean = params.username.trim().toLowerCase();
@@ -247,13 +454,26 @@ export async function registerNewAccount(params: RegisterParams): Promise<DemoAc
   if (!passwordClean) throw new Error("Password tidak boleh kosong!");
   if (!params.fullName.trim()) throw new Error("Nama lengkap harus diisi!");
 
-  const initials = params.fullName
-    .trim()
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() || "US";
+  // Validasi hierarki jika ada akun pembuat
+  if (params.creatorAccount) {
+    const check = canRegisterAccount(
+      params.creatorAccount,
+      params.division,
+      params.level
+    );
+    if (!check.allowed) {
+      throw new Error(check.reason);
+    }
+  }
+
+  const initials =
+    params.fullName
+      .trim()
+      .split(" ")
+      .map((p) => p[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "US";
 
   const position =
     params.position ||
@@ -263,32 +483,29 @@ export async function registerNewAccount(params: RegisterParams): Promise<DemoAc
 
   let newId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : undefined;
 
-  // Simpan langsung ke database Supabase
+  // Hash password sebelum disimpan
+  const hashedPassword = await hashPassword(passwordClean);
+
   if (isSupabaseConfigured && supabase) {
     try {
-      // 1. Cek apakah username atau user_code sudah ada
-      let existing = null;
-      try {
-        const checkRes = await supabase
-          .from("profiles")
-          .select("id, user_code")
-          .or(`user_code.ilike.${usernameClean}`)
-          .maybeSingle();
-        existing = checkRes.data;
-      } catch (_) {}
+      // Cek apakah user_code atau username sudah ada
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id")
+        .or(`user_code.eq.${usernameClean},username.eq.${usernameClean}`)
+        .maybeSingle();
 
       if (existing) {
-        throw new Error(`Username "${usernameClean}" sudah dipakai! Silakan pilih username lain.`);
+        throw new Error(`Username "${usernameClean}" sudah digunakan! Silakan gunakan username lain.`);
       }
 
-      // 2. Siapkan payload
       const payload: any = {
         user_code: usernameClean,
         username: usernameClean,
-        password: passwordClean,
+        password: hashedPassword,
         full_name: params.fullName.trim(),
         operational_role: params.division,
-        division_code: params.division,
+        division_code: params.division === "Salesman" ? "SALES" : params.division,
         account_level: params.level,
         position,
         area_code: params.area || "Surabaya",
@@ -301,43 +518,30 @@ export async function registerNewAccount(params: RegisterParams): Promise<DemoAc
 
       if (newId) payload.id = newId;
 
-      let { data: inserted, error } = await supabase
+      const { data: inserted, error } = await supabase
         .from("profiles")
         .insert(payload)
         .select("*")
         .single();
 
-      // Jika gagal karena kolom username/password belum dibuat di Supabase
-      if (error && error.code === "42703") {
-        delete payload.username;
-        delete payload.password;
-        const retryRes = await supabase
-          .from("profiles")
-          .insert(payload)
-          .select("*")
-          .single();
-        inserted = retryRes.data;
-        error = retryRes.error;
-      }
-
       if (error) {
-        console.warn("Supabase register error:", error.message);
+        console.warn("Supabase register warning:", error.message);
       } else if (inserted) {
         newId = inserted.id;
       }
     } catch (err: any) {
-      if (err.message && err.message.includes("sudah dipakai")) {
+      if (err.message && err.message.includes("sudah digunakan")) {
         throw err;
       }
-      console.warn("Supabase register exception:", err);
+      console.warn("Supabase register error:", err);
     }
   }
 
-  const account: DemoAccount = {
+  const newAccount: DemoAccount = {
     id: newId || `user-${usernameClean}`,
     code: usernameClean,
     username: usernameClean,
-    password: passwordClean,
+    password: hashedPassword,
     name: params.fullName.trim(),
     initials,
     level: params.level,
@@ -352,12 +556,11 @@ export async function registerNewAccount(params: RegisterParams): Promise<DemoAc
     mapsUrl: "https://maps.google.com/?q=-7.2575,112.7521",
   };
 
-  saveSession(account);
-  return account;
+  return newAccount;
 }
 
 /**
- * AMBIL SEMUA AKUN DARI SUPABASE (UNTUK MENU KELOLA AKUN)
+ * AMBIL SEMUA AKUN DARI SUPABASE UNTUK PANEL KELOLA AKUN
  */
 export async function fetchAllAccounts(): Promise<DemoAccount[]> {
   if (isSupabaseConfigured && supabase) {
@@ -365,60 +568,70 @@ export async function fetchAllAccounts(): Promise<DemoAccount[]> {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
 
       if (!error && data && data.length > 0) {
-        return data.map((d: any) => ({
-          id: d.id || d.user_code,
-          code: d.user_code,
-          username: d.username || d.user_code,
-          password: d.password || "123",
-          name: d.full_name || d.user_code,
-          initials: (d.full_name || d.user_code)
-            .split(" ")
-            .map((p: string) => p[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase(),
-          level: (d.account_level as AccountLevel) || "user",
-          role: (d.operational_role as OperationalRole) || "FC",
-          division: d.division_code || d.operational_role || "FC",
-          area: d.area_code || "Surabaya",
-          phone: d.phone || "",
-          position: d.position || "",
-          gender: d.gender || "Laki-laki",
-          address: d.address || "",
-          mapsUrl: d.maps_url || "",
-          joinDate: d.join_date || "",
-        }));
+        return data.map((d: any) => {
+          const matched = hierarchyAccounts.find(
+            (h) => h.altCode === d.user_code || h.username === d.user_code || h.username === d.username
+          );
+
+          const username = d.username || matched?.username || d.user_code;
+          const role = (d.operational_role as OperationalRole) || matched?.role || "FC";
+          const level = (d.account_level as AccountLevel) || matched?.level || "user";
+
+          return {
+            id: d.id || d.user_code,
+            code: d.user_code,
+            username,
+            password: d.password || "••••••••",
+            name: d.full_name || d.user_code,
+            initials: (d.full_name || d.user_code)
+              .split(" ")
+              .map((p: string) => p[0])
+              .slice(0, 2)
+              .join("")
+              .toUpperCase(),
+            level,
+            role,
+            division: d.division_code || role,
+            area: d.area_code || "Surabaya",
+            phone: d.phone || "",
+            position: d.position || (level === "admin" ? `Admin ${role}` : `${role} Lapangan`),
+            gender: d.gender || "Laki-laki",
+            address: d.address || "",
+            mapsUrl: d.maps_url || "",
+            joinDate: d.join_date || "",
+          };
+        });
       }
     } catch (err) {
       console.warn("fetchAllAccounts error:", err);
     }
   }
 
-  // Fallback demo accounts jika Supabase offline
-  return quickAccounts.map((q) => ({
-    id: `${q.username}-id`,
-    code: q.username,
-    username: q.username,
-    password: q.pass,
-    name: q.name,
-    initials: q.name.split(" ").map((p) => p[0]).slice(0, 2).join(""),
-    level: q.level as AccountLevel,
-    role: q.role as OperationalRole,
-    division: q.role,
-    area: "Surabaya",
-    position: `${q.role} ${q.level.toUpperCase()}`,
+  // Fallback
+  return hierarchyAccounts.map((h) => ({
+    id: `${h.username}-id`,
+    code: h.altCode,
+    username: h.username,
+    password: h.pass,
+    name: h.name,
+    initials: h.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase(),
+    level: h.level,
+    role: h.role,
+    division: h.role,
+    area: h.area,
+    position: h.position,
     phone: "083854377989",
     gender: "Laki-laki",
-    address: `Area ${q.role} Surabaya`,
+    address: `Basecamp ${h.role} - ${h.area}`,
     joinDate: "01/07/2024",
   }));
 }
 
 /**
- * UPDATE KREDENSIAL / PASSWORD AKUN DI SUPABASE
+ * UPDATE KREDENSIAL / PASSWORD AKUN DI SUPABASE (DENGAN ENKRIPSI HASH)
  */
 export async function updateAccountCredentials(
   userId: string,
@@ -430,7 +643,10 @@ export async function updateAccountCredentials(
   if (!isSupabaseConfigured || !supabase) return false;
 
   try {
-    const updateObj: any = { password: newPassword };
+    const updateObj: any = {};
+    if (newPassword) {
+      updateObj.password = await hashPassword(newPassword);
+    }
     if (newRole) updateObj.operational_role = newRole;
     if (newLevel) updateObj.account_level = newLevel;
 
@@ -440,7 +656,7 @@ export async function updateAccountCredentials(
       .eq("user_code", userCode);
 
     if (error) {
-      console.warn("Gagal update password akun:", error.message);
+      console.warn("Gagal update credentials akun:", error.message);
       return false;
     }
     return true;

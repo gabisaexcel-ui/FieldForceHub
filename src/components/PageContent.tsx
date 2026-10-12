@@ -1664,6 +1664,11 @@ function UsersModule({
   account: DemoAccount;
   onToast: (message: string) => void;
 }) {
+  const isMaster = account.level === "master";
+  const isAdmin = account.level === "admin";
+  const isUser = account.level === "user";
+  const canCreate = isMaster || isAdmin;
+
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
   const [levelFilter, setLevelFilter] = useState<string>("ALL");
@@ -1671,14 +1676,16 @@ function UsersModule({
   const [loading, setLoading] = useState(true);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
 
-  // State Modal Buat Akun Baru
+  // State Modal Buat Akun Baru (Hierarki)
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newUsername, setNewUsername] = useState("");
-  const [newPassword, setNewPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("123");
   const [newFullName, setNewFullName] = useState("");
-  const [newDivision, setNewDivision] = useState<OperationalRole>("FC");
+  const [newDivision, setNewDivision] = useState<OperationalRole>(
+    isAdmin ? (account.role as OperationalRole) : "FC"
+  );
   const [newLevel, setNewLevel] = useState<AccountLevel>("user");
-  const [newArea, setNewArea] = useState("Surabaya");
+  const [newArea, setNewArea] = useState(account.area || "Surabaya");
   const [newPhone, setNewPhone] = useState("");
   const [submittingCreate, setSubmittingCreate] = useState(false);
 
@@ -1710,6 +1717,18 @@ function UsersModule({
     setShowPasswords((prev) => ({ ...prev, [code]: !prev[code] }));
   };
 
+  const handleOpenCreateModal = () => {
+    if (isAdmin) {
+      setNewDivision((account.role as OperationalRole) || "FC");
+      setNewLevel("user");
+    } else if (isMaster) {
+      setNewDivision("FC");
+      setNewLevel("user");
+    }
+    setNewPassword("123");
+    setCreateModalOpen(true);
+  };
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingCreate(true);
@@ -1718,16 +1737,17 @@ function UsersModule({
         username: newUsername,
         password: newPassword,
         fullName: newFullName,
-        division: newDivision,
-        level: newLevel,
+        division: isAdmin ? (account.role as OperationalRole) : newDivision,
+        level: isAdmin ? "user" : newLevel,
         area: newArea,
         phone: newPhone,
+        creatorAccount: account,
       });
 
-      onToast(`Akun @${newUsername} berhasil dibuat di Supabase!`);
+      onToast(`Akun @${newUsername} berhasil didaftarkan sesuai hierarki!`);
       setCreateModalOpen(false);
       setNewUsername("");
-      setNewPassword("");
+      setNewPassword("123");
       setNewFullName("");
       setNewPhone("");
       await loadAccounts();
@@ -1756,8 +1776,8 @@ function UsersModule({
         targetAccount.id,
         targetAccount.code || targetAccount.username || targetAccount.id,
         editPassword,
-        editDivision,
-        editLevel
+        isMaster ? editDivision : undefined,
+        isMaster ? editLevel : undefined
       );
 
       if (success) {
@@ -1789,6 +1809,16 @@ function UsersModule({
     }
   };
 
+  // Cek apakah user saat ini boleh mengedit/menghapus akun tertentu
+  const canManageTarget = (target: DemoAccount) => {
+    if (isMaster) return true;
+    if (isAdmin) {
+      // Admin hanya bisa mengelola User dari divisinya sendiri
+      return target.role === account.role && target.level === "user";
+    }
+    return false;
+  };
+
   const filtered = useMemo(() => {
     return accountsList.filter((m) => {
       const matchRole = roleFilter === "ALL" || m.role === roleFilter;
@@ -1807,10 +1837,14 @@ function UsersModule({
     <div className="module-container">
       <div className="module-header-row">
         <div>
-          <span className="eyebrow-tag">ADMINISTRASI • KELOLA AKUN MANDIRI</span>
-          <h1 className="module-title">Daftar Akun & Hak Akses Pengguna</h1>
+          <span className="eyebrow-tag">ADMINISTRASI • HIERARKI AKUN</span>
+          <h1 className="module-title">Daftar Akun Resmi & Hak Akses</h1>
           <p className="module-desc">
-            Setiap orang memiliki akun pribadi dengan username dan password masing-masing yang tersimpan di Supabase.
+            {isMaster
+              ? "Akses Master: Anda dapat mendaftarkan Admin dan User untuk seluruh divisi operasional."
+              : isAdmin
+              ? `Akses Admin Divisi ${account.role}: Anda dapat mendaftarkan User Lapangan untuk divisi ${account.role}.`
+              : `Akses User Lapangan ${account.role}: Anda dapat melihat daftar akun resmi yang terdaftar.`}
           </p>
         </div>
 
@@ -1822,25 +1856,32 @@ function UsersModule({
           >
             <RefreshCw size={14} className={loading ? "spin" : ""} /> Refresh Data
           </button>
-          <button
-            className="btn-primary-action"
-            onClick={() => setCreateModalOpen(true)}
-          >
-            <UserPlus size={15} /> Buat Akun Baru
-          </button>
+          {canCreate && (
+            <button
+              className="btn-primary-action"
+              onClick={handleOpenCreateModal}
+            >
+              <UserPlus size={15} /> Buat Akun Baru
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Info Banner Akun Pribadi */}
+      {/* Info Banner Hierarki Akun */}
       <div className="account-info-banner">
         <div className="account-info-icon">
           <KeyRound size={20} />
         </div>
         <div className="account-info-content">
-          <strong>Sistem Akun Mandiri Terhubung ke Supabase</strong>
+          <strong>Aturan Hierarki Akun (1 Akun = 1 Role & Status Tetap)</strong>
           <p>
-            Setiap individu memiliki kredensial sendiri. Untuk personil bawaan, password default adalah <code>123</code>.
-            Admin dapat menambahkan akun baru untuk divisi mana saja, melihat username & password, atau mengubah password kapan saja.
+            {isMaster ? (
+              <>👑 <strong>Akses Master:</strong> Anda memiliki wewenang penuh untuk mendaftarkan akun Admin Divisi maupun User Lapangan ke seluruh divisi.</>
+            ) : isAdmin ? (
+              <>🛡️ <strong>Akses Admin Divisi ({account.role}):</strong> Anda berwenang mendaftarkan akun User Lapangan untuk divisi <strong>{account.role}</strong>. Akun Admin diregistrasikan oleh Master.</>
+            ) : (
+              <>👤 <strong>Akses User Lapangan ({account.role}):</strong> Setiap akun terikat dengan 1 role dan status tetap. Pembuatan akun dilakukan oleh Admin atau Master.</>
+            )}
           </p>
         </div>
       </div>
@@ -1873,7 +1914,7 @@ function UsersModule({
             className={levelFilter === "ALL" ? "active" : ""}
             onClick={() => setLevelFilter("ALL")}
           >
-            Semua Level
+            Semua
           </button>
           <button
             className={levelFilter === "admin" ? "active" : ""}
@@ -1885,7 +1926,7 @@ function UsersModule({
             className={levelFilter === "user" ? "active" : ""}
             onClick={() => setLevelFilter("user")}
           >
-            User Lapangan
+            User
           </button>
         </div>
       </div>
@@ -1894,7 +1935,7 @@ function UsersModule({
       <article className="panel">
         <div className="panel-top-row">
           <h2 className="panel-title">Daftar Akun Personil Terdaftar</h2>
-          <span className="count-pill">{filtered.length} Akun Tersimpan</span>
+          <span className="count-pill">{filtered.length} Akun Aktif</span>
         </div>
 
         <div className="table-scroll">
@@ -1908,20 +1949,20 @@ function UsersModule({
                 <th>Area Penugasan</th>
                 <th>Jabatan / Posisi</th>
                 <th>WhatsApp</th>
-                <th style={{ textAlign: "right" }}>Aksi Akun</th>
+                {canCreate && <th style={{ textAlign: "right" }}>Aksi Akun</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: "center", padding: "32px", color: "var(--color-muted)" }}>
+                  <td colSpan={canCreate ? 8 : 7} style={{ textAlign: "center", padding: "32px", color: "var(--color-muted)" }}>
                     <RefreshCw size={20} className="spin" style={{ margin: "0 auto 8px" }} />
                     <div>Memuat akun dari Supabase database...</div>
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: "center", padding: "32px", color: "var(--color-muted)" }}>
+                  <td colSpan={canCreate ? 8 : 7} style={{ textAlign: "center", padding: "32px", color: "var(--color-muted)" }}>
                     Tidak ada akun yang sesuai dengan filter pencarian.
                   </td>
                 </tr>
@@ -1930,6 +1971,7 @@ function UsersModule({
                   const accCode = item.code || item.username || item.id;
                   const isPassVisible = Boolean(showPasswords[accCode]);
                   const passVal = item.password || "123";
+                  const canEditThisRow = canManageTarget(item);
 
                   return (
                     <tr key={accCode}>
@@ -1978,24 +2020,32 @@ function UsersModule({
                       </td>
                       <td>{item.position || "—"}</td>
                       <td>{item.phone || "—"}</td>
-                      <td style={{ textAlign: "right" }}>
-                        <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                          <button
-                            className="btn-table-action"
-                            onClick={() => handleOpenEdit(item)}
-                            title="Ubah Password atau Hak Akses"
-                          >
-                            <Edit2 size={13} /> Edit
-                          </button>
-                          <button
-                            className="btn-table-action danger"
-                            onClick={() => void handleDelete(item)}
-                            title="Hapus Akun Ini"
-                          >
-                            <Trash2 size={13} /> Hapus
-                          </button>
-                        </div>
-                      </td>
+                      {canCreate && (
+                        <td style={{ textAlign: "right" }}>
+                          {canEditThisRow ? (
+                            <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                              <button
+                                className="btn-table-action"
+                                onClick={() => handleOpenEdit(item)}
+                                title="Ubah Password atau Data"
+                              >
+                                <Edit2 size={13} /> Edit
+                              </button>
+                              <button
+                                className="btn-table-action danger"
+                                onClick={() => void handleDelete(item)}
+                                title="Hapus Akun Ini"
+                              >
+                                <Trash2 size={13} /> Hapus
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: "11px", color: "var(--color-muted)" }}>
+                              Terkunci
+                            </span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -2005,14 +2055,14 @@ function UsersModule({
         </div>
       </article>
 
-      {/* ================= MODAL BUAT AKUN BARU ================= */}
+      {/* ================= MODAL BUAT AKUN BARU SESUAI HIERARKI ================= */}
       {createModalOpen && (
         <div className="modal-backdrop">
           <div className="modal-card" style={{ maxWidth: "560px" }}>
             <div className="modal-head">
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <UserPlus size={18} className="text-primary-link" />
-                <h3>Buat Akun Baru untuk Pengguna</h3>
+                <h3>Buat Akun Baru ({isAdmin ? `User Divisi ${account.role}` : "Hierarki"})</h3>
               </div>
               <button className="close-btn" onClick={() => setCreateModalOpen(false)}>
                 <X size={18} />
@@ -2020,9 +2070,23 @@ function UsersModule({
             </div>
 
             <form onSubmit={handleCreateSubmit} style={{ padding: "16px 20px" }}>
-              <p className="muted-text" style={{ fontSize: "12px", marginBottom: "16px" }}>
-                Akun yang dibuat akan langsung tersimpan di Supabase database dan dapat langsung digunakan untuk login mandiri.
-              </p>
+              <div
+                style={{
+                  background: isAdmin ? "#eff6ff" : "#f0fdf4",
+                  border: `1px solid ${isAdmin ? "#bfdbfe" : "#bbf7d0"}`,
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  marginBottom: "16px",
+                  fontSize: "12px",
+                  color: isAdmin ? "#1e40af" : "#166534",
+                }}
+              >
+                {isAdmin ? (
+                  <>📌 <strong>Hak Akses Admin {account.role}:</strong> Akun yang didaftarkan otomatis berstatus <strong>User Lapangan</strong> untuk divisi <strong>{account.role}</strong>.</>
+                ) : (
+                  <>👑 <strong>Hak Akses Master:</strong> Anda dapat mendaftarkan akun untuk divisi dan level mana saja.</>
+                )}
+              </div>
 
               <div className="login-inputs-grid">
                 <div className="login-input-group">
@@ -2031,7 +2095,7 @@ function UsersModule({
                     type="text"
                     value={newUsername}
                     onChange={(e) => setNewUsername(e.target.value)}
-                    placeholder="Contoh: rudi_md / siska_fc"
+                    placeholder="Contoh: rudi_md / budi_fc"
                     required
                     autoFocus
                   />
@@ -2043,7 +2107,7 @@ function UsersModule({
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Buat password login"
+                    placeholder="Password akun (default: 123)"
                     required
                   />
                 </div>
@@ -2061,27 +2125,45 @@ function UsersModule({
 
                 <div className="login-input-group">
                   <label>Divisi Kerja:</label>
-                  <select
-                    value={newDivision}
-                    onChange={(e) => setNewDivision(e.target.value as OperationalRole)}
-                  >
-                    {operationalDivisions.map((d) => (
-                      <option key={d} value={d}>
-                        {d} — {divisionMeta[d]?.name || d}
-                      </option>
-                    ))}
-                  </select>
+                  {isAdmin ? (
+                    <input
+                      type="text"
+                      value={`${account.role} (${divisionMeta[account.role]?.name || account.role})`}
+                      disabled
+                      className="readonly-input"
+                    />
+                  ) : (
+                    <select
+                      value={newDivision}
+                      onChange={(e) => setNewDivision(e.target.value as OperationalRole)}
+                    >
+                      {operationalDivisions.map((d) => (
+                        <option key={d} value={d}>
+                          {d} — {divisionMeta[d]?.name || d}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="login-input-group">
                   <label>Level Akses:</label>
-                  <select
-                    value={newLevel}
-                    onChange={(e) => setNewLevel(e.target.value as AccountLevel)}
-                  >
-                    <option value="user">User Lapangan (Absensi GPS & Tugas)</option>
-                    <option value="admin">Admin Divisi (Approval & Master Data)</option>
-                  </select>
+                  {isAdmin ? (
+                    <input
+                      type="text"
+                      value="User Lapangan"
+                      disabled
+                      className="readonly-input"
+                    />
+                  ) : (
+                    <select
+                      value={newLevel}
+                      onChange={(e) => setNewLevel(e.target.value as AccountLevel)}
+                    >
+                      <option value="user">User Lapangan</option>
+                      <option value="admin">Admin Divisi</option>
+                    </select>
+                  )}
                 </div>
 
                 <div className="login-input-group">
@@ -2119,7 +2201,7 @@ function UsersModule({
                   className="btn-primary-action"
                   disabled={submittingCreate}
                 >
-                  {submittingCreate ? "Menyimpan ke Supabase..." : "Simpan Akun Baru"}
+                  {submittingCreate ? "Menyimpan ke Supabase..." : "Daftarkan Akun"}
                 </button>
               </div>
             </form>
@@ -2134,7 +2216,7 @@ function UsersModule({
             <div className="modal-head">
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <KeyRound size={18} className="text-primary-link" />
-                <h3>Ubah Password & Akses Akun</h3>
+                <h3>Ubah Password Akun</h3>
               </div>
               <button className="close-btn" onClick={() => setEditModalOpen(false)}>
                 <X size={18} />
@@ -2147,7 +2229,7 @@ function UsersModule({
                   Akun: <strong>@{targetAccount.username || targetAccount.code}</strong>
                 </div>
                 <div style={{ fontSize: "13px", color: "var(--color-muted)" }}>
-                  Nama: <strong>{targetAccount.name}</strong> ({targetAccount.role})
+                  Nama: <strong>{targetAccount.name}</strong> ({targetAccount.role} • {targetAccount.level.toUpperCase()})
                 </div>
               </div>
 
@@ -2163,30 +2245,34 @@ function UsersModule({
                   />
                 </div>
 
-                <div className="login-input-group">
-                  <label>Ubah Divisi:</label>
-                  <select
-                    value={editDivision}
-                    onChange={(e) => setEditDivision(e.target.value as OperationalRole)}
-                  >
-                    {operationalDivisions.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {isMaster && (
+                  <>
+                    <div className="login-input-group">
+                      <label>Ubah Divisi:</label>
+                      <select
+                        value={editDivision}
+                        onChange={(e) => setEditDivision(e.target.value as OperationalRole)}
+                      >
+                        {operationalDivisions.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div className="login-input-group">
-                  <label>Ubah Level:</label>
-                  <select
-                    value={editLevel}
-                    onChange={(e) => setEditLevel(e.target.value as AccountLevel)}
-                  >
-                    <option value="user">User Lapangan</option>
-                    <option value="admin">Admin Divisi</option>
-                  </select>
-                </div>
+                    <div className="login-input-group">
+                      <label>Ubah Level:</label>
+                      <select
+                        value={editLevel}
+                        onChange={(e) => setEditLevel(e.target.value as AccountLevel)}
+                      >
+                        <option value="user">User Lapangan</option>
+                        <option value="admin">Admin Divisi</option>
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="modal-foot" style={{ marginTop: "20px" }}>
@@ -2202,7 +2288,7 @@ function UsersModule({
                   className="btn-primary-action"
                   disabled={submittingEdit}
                 >
-                  {submittingEdit ? "Menyimpan Perubahan..." : "Perbarui Akun"}
+                  {submittingEdit ? "Menyimpan Perubahan..." : "Simpan Password Baru"}
                 </button>
               </div>
             </form>
