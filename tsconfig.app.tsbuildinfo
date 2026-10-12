@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/components/pagecontent.tsx","./src/components/sidebar.tsx","./src/components/statusbadge.tsx","./src/components/topbar.tsx","./src/data/mockdata.ts","./src/data/navigation.ts","./src/hooks/userealtimesync.ts","./src/lib/access.ts","./src/lib/supabase.ts"],"version":"5.9.3"}
