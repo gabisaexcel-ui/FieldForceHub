@@ -6,3 +6,6 @@ dist
 .dev.vars
 *.log
 *.tgz
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
