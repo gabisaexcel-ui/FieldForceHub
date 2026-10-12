@@ -17,9 +17,11 @@ export function useRealtimeSync(account: DemoAccount, onChange: () => void) {
       : `scope:${account.division.toLowerCase()}:${account.area.toLowerCase()}`;
 
     const channel = client
-      .channel(topic, { config: { private: true } })
+      .channel(topic)
       .on("broadcast", { event: "data_changed" }, () => onChange())
-      .subscribe((status) => setConnected(status === "SUBSCRIBED"));
+      .subscribe((status) => {
+        setConnected(status === "SUBSCRIBED");
+      });
 
     return () => {
       void client.removeChannel(channel);

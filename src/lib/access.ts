@@ -12,12 +12,14 @@ const userModules: Record<OperationalRole, ModuleKey[]> = {
     "expenses",
     "violations",
     "reports",
+    "users",
+    "master-data",
   ],
-  MD: ["dashboard", "attendance", "leave", "programs", "expenses", "violations", "reports"],
-  MDPS: ["dashboard", "attendance", "leave", "programs", "expenses", "violations", "reports"],
-  Salesman: ["dashboard", "attendance", "leave", "skp", "programs", "expenses", "violations", "reports"],
-  TS: ["dashboard", "skp", "programs", "reports"],
-  KAM: ["dashboard", "skp", "programs", "reports"],
+  MD: ["dashboard", "attendance", "leave", "programs", "expenses", "violations", "reports", "users"],
+  MDPS: ["dashboard", "attendance", "leave", "programs", "expenses", "violations", "reports", "users"],
+  Salesman: ["dashboard", "attendance", "leave", "skp", "programs", "expenses", "violations", "reports", "users"],
+  TS: ["dashboard", "skp", "programs", "reports", "users"],
+  KAM: ["dashboard", "skp", "programs", "expenses", "reports", "users"],
 };
 
 const administrationModules: ModuleKey[] = ["users", "master-data", "settings"];
@@ -50,7 +52,7 @@ export function canManageUsers(level: AccountLevel) {
 }
 
 export function scopeLabel(account: DemoAccount) {
-  if (account.level === "master") return "Seluruh divisi & area";
+  if (account.level === "master") return "Seluruh divisi & area (Nasional)";
   if (account.level === "admin") return `${account.division} • ${account.area}`;
-  return `Data pribadi • ${account.area}`;
+  return `${account.role} Lapangan • ${account.area}`;
 }
