@@ -43,6 +43,15 @@ export function Topbar({
           <Menu size={20} />
         </button>
 
+        {/* Brand & Page Context Header for Mobile Devices */}
+        <div className="mobile-topbar-title">
+          <div className="mobile-brand-heading">
+            <span className="mobile-brand-dot" />
+            <strong>CORP NAME</strong>
+          </div>
+          <small>{account.role} • {account.area || account.division}</small>
+        </div>
+
         {/* Modern pill search bar matching mockup */}
         <div className="search-pill-container">
           <Search size={18} className="search-icon" />

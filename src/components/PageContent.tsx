@@ -94,6 +94,7 @@ import type {
 } from "../types";
 import { ProfileModal } from "./ProfileModal";
 import { StatusBadge } from "./StatusBadge";
+import { AttendanceCheckinSection } from "./AttendanceCheckinSection";
 
 interface PageContentProps {
   active: ModuleKey;
@@ -681,6 +682,9 @@ function AttendanceModule({
 
           {/* Matrix Table: Format Rekap Absen September 2026 (Gambar 3 Excel) */}
           <article className="panel matrix-table-panel">
+            <div className="mobile-table-scroll-hint">
+              <span>👉 Geser horizontal untuk melihat tanggal 1 s/d 30</span>
+            </div>
             <div className="matrix-table-scroll-wrapper">
               <table className="excel-matrix-table">
                 <thead>
@@ -743,141 +747,13 @@ function AttendanceModule({
           </article>
         </>
       ) : (
-        /* Presensi Check-In Harian GPS & Selfie */
-        <div className="checkin-layout-grid">
-          <article className="panel checkin-card">
-            <h2>Simulasi Check-In GPS & Selfie</h2>
-            <p className="muted-text">Presensi harian manpower dengan deteksi lokasi akurat & foto selfie.</p>
-
-            <div className="camera-preview-box">
-              <div className="camera-overlay">
-                <Camera size={34} />
-                <span>Kamera Aktif • Foto Terverifikasi</span>
-              </div>
-            </div>
-
-            <div className="checkin-meta-details">
-              <div className="meta-row">
-                <span>Koordinat GPS:</span>
-                <strong>-7.2575, 112.7521 (Surabaya Timur)</strong>
-              </div>
-              <div className="meta-row">
-                <span>Waktu Check-In:</span>
-                <strong>{checkInDone ? `${checkInTime} WIB` : "Belum Presensi"}</strong>
-              </div>
-              <div className="meta-row">
-                <span>Status Kehadiran:</span>
-                <span className="status-badge success"><span className="status-dot" />Great (Tepat Waktu)</span>
-              </div>
-            </div>
-
-            <div className="input-group">
-              <label>Catatan / Keterangan Keterlambatan (Opsional jika tepat waktu):</label>
-              <input
-                placeholder="Contoh: Kunjungan toko pertama jam 08:00 WIB"
-                value={lateReason}
-                onChange={(e) => setLateReason(e.target.value)}
-              />
-            </div>
-
-            <button
-              className="btn-primary-full"
-              disabled={checkInDone || loadingAttendance}
-              onClick={handleSimulateCheckin}
-            >
-              {loadingAttendance
-                ? "Menyimpan ke Supabase..."
-                : checkInDone
-                ? `Sudah Check-In Hari Ini (${checkInTime} WIB)`
-                : "Kirim Presensi Sekarang"}
-            </button>
-
-            {checkInDone && (
-              <div style={{ marginTop: "10px" }}>
-                <button
-                  type="button"
-                  className="btn-soft-action"
-                  style={{ width: "100%", color: "#dc2626", borderColor: "#fecaca", background: "#fef2f2" }}
-                  onClick={() => handleDeleteAttendance(undefined, account.code || account.id)}
-                  title="Menghapus record presensi hari ini dari tabel attendance_records di Supabase"
-                >
-                  <Trash2 size={14} /> Batalkan / Hapus Presensi Hari Ini (Supabase DELETE)
-                </button>
-              </div>
-            )}
-          </article>
-
-          {/* Table Live Check-in */}
-          <article className="panel">
-            <div className="panel-top-row">
-              <h2 className="panel-title">Data Presensi Hari Ini</h2>
-              <span className="count-pill">{liveAttendanceList.length} Orang</span>
-            </div>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Nama</th>
-                    <th>Role</th>
-                    <th>Area</th>
-                    <th>Jam Check-In</th>
-                    <th>Status</th>
-                    <th>Catatan</th>
-                    <th>Aksi CRUD</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {liveAttendanceList.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        style={{
-                          textAlign: "center",
-                          padding: "28px 12px",
-                          color: "#64748b",
-                          fontSize: "13px",
-                        }}
-                      >
-                        Belum ada data presensi hari ini di Supabase. Silakan klik tombol "Kirim Presensi Sekarang" (CREATE).
-                      </td>
-                    </tr>
-                  ) : (
-                    liveAttendanceList.map((r, idx) => (
-                      <tr key={`${r.name}-${r.checkIn}-${idx}`}>
-                        <td><strong>{r.name}</strong></td>
-                        <td>{r.role}</td>
-                        <td>{r.area}</td>
-                        <td>{r.checkIn}</td>
-                        <td><StatusBadge status={r.status} /></td>
-                        <td className="muted-text">{r.note}</td>
-                        <td>
-                          <div style={{ display: "flex", gap: "6px" }}>
-                            <button
-                              className="btn-soft-action"
-                              style={{ padding: "4px 8px", fontSize: "11px", gap: "4px" }}
-                              title="Edit Catatan (UPDATE ke Supabase)"
-                              onClick={() => handleEditAttendance(r)}
-                            >
-                              <Edit2 size={12} /> Edit
-                            </button>
-                            <button
-                              className="btn-soft-action"
-                              style={{ padding: "4px 8px", fontSize: "11px", gap: "4px", color: "#dc2626", borderColor: "#fecaca" }}
-                              title="Hapus Baris (DELETE dari Supabase)"
-                              onClick={() => handleDeleteAttendance(r.id, r.userCode)}
-                            >
-                              <Trash2 size={12} /> Hapus
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        </div>
+        /* Presensi Check-In Harian GPS & Foto Selfie (Supabase Live & Local R2 Storage) */
+        <AttendanceCheckinSection
+          account={account}
+          liveList={liveAttendanceList}
+          onToast={onToast}
+          onRefresh={loadAttendance}
+        />
       )}
 
       {/* Profile Modal for Self Editing */}

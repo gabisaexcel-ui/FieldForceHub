@@ -63,16 +63,21 @@ export function Sidebar({ account, active, open, onClose, onNavigate, onLogout }
     }
     const navRect = navRef.current.getBoundingClientRect();
     const activeRect = activeEl.getBoundingClientRect();
-    const relativeTop = activeRect.top - navRect.top;
+    // Tambahkan navRef.current.scrollTop agar posisi absolut di dalam scroll container selalu pas saat di-scroll
+    const relativeTop = activeRect.top - navRect.top + navRef.current.scrollTop;
     const centerY = relativeTop + activeRect.height / 2;
     // Tinggi gelombang 180px (luwes & mengalir), titik tengah lengkungan tepat di 90px
-    const targetTop = centerY - 90;
-    setIndicatorTop(targetTop);
+    const targetTop = Math.round(centerY - 90);
+    setIndicatorTop((prev) => (prev === targetTop ? prev : targetTop));
     setIsReady(true);
   };
 
   useLayoutEffect(() => {
     updateIndicator();
+    const activeWrap = navRef.current?.querySelector<HTMLElement>(".nav-item-wrap.active");
+    if (activeWrap) {
+      activeWrap.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
     const raf = requestAnimationFrame(updateIndicator);
     const t1 = setTimeout(updateIndicator, 40);
     const t2 = setTimeout(updateIndicator, 140);
